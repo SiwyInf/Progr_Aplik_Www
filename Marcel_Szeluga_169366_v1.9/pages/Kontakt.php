@@ -1,0 +1,50 @@
+<?php
+// Plik: pages/Kontakt.php
+?>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Language" content="pl">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kontakt</title>
+    <link rel="stylesheet" href="css/style_css.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="js/kolorujtlo.js" type="text/javascript"></script>
+    <script src="js/timedate.js" type="text/javascript"></script>
+</head>
+<body>
+    <header>
+        <h1 class="kon">Kontakt</h1>
+    </header>
+
+    <div class="container">
+        <form action="Wyslij.php" method="POST">
+            <div class="form-group">
+                <label for="name">Imię i nazwisko:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Temat:</label>
+                <input type="text" id="subject" name="subject" required>
+            </div>
+
+            <div class="form-group">
+                <label for="message">Wiadomość:</label>
+                <textarea id="message" name="message" rows="4" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Wyślij">
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>

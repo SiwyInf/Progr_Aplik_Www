@@ -273,6 +273,7 @@ function usunKategorie($link, $id) {
     } else {
         // Kategoria o takim ID nie istnieje
         echo "<p>Nie znaleziono kategorii o podanym ID.</p>";
+        echo "<p>Nie znaleziono kategorii o podanym ID.</p>";
     }
 }
 
@@ -316,17 +317,21 @@ function edytujKategorieFormularz($link, $id) {
 function procesDodawaniaKategorii($link) {
     if (isset($_POST['category_name'])) {
         $category_name = mysqli_real_escape_string($link, $_POST['category_name']);
-        $parent_id = isset($_POST['parent_id']) ? $_POST['parent_id'] : 0; // Jeśli nie ma parent_id, ustaw na 0
+        $parent_id = isset($_POST['parent_id']) ? $_POST['parent_id'] : 'NULL'; // Poprawka dla wartości NULL
 
         // Zapytanie SQL do dodania nowej kategorii
         $query = "INSERT INTO category_list (nazwa, matka) VALUES ('{$category_name}', {$parent_id})";
-        mysqli_query($link, $query);
+
+        if (!mysqli_query($link, $query)) {
+            die("Błąd SQL: " . mysqli_error($link)); // Wyświetl błąd SQL
+        }
 
         // Po zapisaniu przekierowanie do listy kategorii
         header("Location: admin.php?action=list_categories");
         exit();
     }
 }
+
 
 /**
  * Proces edytowania kategorii.
@@ -334,17 +339,21 @@ function procesDodawaniaKategorii($link) {
 function procesEdycjiKategorii($link, $id) {
     if (isset($_POST['category_name'])) {
         $category_name = mysqli_real_escape_string($link, $_POST['category_name']);
-        $parent_id = $_POST['parent_id'];
+        $parent_id = ($_POST['parent_id'] !== '') ? $_POST['parent_id'] : 'NULL'; // Obsługa pustego parent_id
 
         // Aktualizacja nazwy kategorii
-        $query = "UPDATE category_list SET nazwa = '{$category_name}', matka = '{$parent_id}' WHERE ID = {$id}";
-        mysqli_query($link, $query);
+        $query = "UPDATE category_list SET nazwa = '{$category_name}', matka = {$parent_id} WHERE ID = {$id}";
+
+        if (!mysqli_query($link, $query)) {
+            die("Błąd SQL: " . mysqli_error($link)); // Wyświetl błąd SQL
+        }
 
         // Po zapisaniu przekierowanie do listy kategorii
         header("Location: admin.php?action=list_categories");
         exit();
     }
 }
+
 
 
 /**

@@ -105,6 +105,11 @@ if (!$link) {
     die('<b>Przerwane połączenie: </b>' . mysqli_connect_error());
 }
 
+// Akcja wyświetlania formularza dodawania produktu
+if (isset($_GET['action']) && $_GET['action'] == 'add_product') {
+    dodajProduktFormularz($link); // Przekazanie zmiennej $link
+}
+
 /**
  * Generuje nagłówek strony admina.
  */
@@ -170,62 +175,133 @@ function listaKategorii($link) {
 }
 
 
-/**
- * Wyświetla formularz dodawania nowego produktu.
- */
 function dodajProduktFormularz() {
+    global $link; // Używamy globalnej zmiennej $link
     echo "<div class='add-product-form'><h1>Dodaj Nowy Produkt</h1>";
     echo "<form method='post' action='admin.php?action=process_add_product'>";
+
     echo "<label for='product_title'>Tytuł Produktu:</label><br>";
     echo "<input type='text' name='product_title' id='product_title' required><br><br>";
+
     echo "<label for='product_description'>Opis Produktu:</label><br>";
     echo "<textarea name='product_description' id='product_description' required></textarea><br><br>";
+
     echo "<label for='product_price'>Cena Netto:</label><br>";
     echo "<input type='number' step='0.01' name='product_price' id='product_price' required><br><br>";
+
     echo "<label for='product_stock'>Ilość na magazynie:</label><br>";
     echo "<input type='number' name='product_stock' id='product_stock' required><br><br>";
+
     echo "<label for='product_status'>Status dostępności:</label><br>";
-    echo "<select name='product_status' id='product_status'><option value='Dostępny'>Dostępny</option><option value='Niedostępny'>Niedostępny</option></select><br><br>";
+    echo "<select name='product_status' id='product_status'>";
+    echo "<option value='Dostępny'>Dostępny</option>";
+    echo "<option value='Niedostępny'>Niedostępny</option>";
+    echo "</select><br><br>";
+
+    // Dodajemy pole do wyboru kategorii
+    echo "<label for='product_category'>Kategoria:</label><br>";
+    echo "<select name='product_category' id='product_category' required>";
+
+    // Pobieramy dostępne kategorie z bazy danych
+    $query = "SELECT id, nazwa FROM category_list ORDER BY nazwa";
+    $result = mysqli_query($link, $query);
+
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            echo "<option value='{$row['id']}'>{$row['nazwa']}</option>";
+        }
+    } else {
+        echo "<option value=''>Brak dostępnych kategorii</option>";
+    }
+
+    echo "</select><br><br>";
+
+    // Dodane pole do wklejenia linku do zdjęcia
+    echo "<label for='product_image'>Link do zdjęcia produktu:</label><br>";
+    echo "<input type='text' name='product_image' id='product_image' placeholder='Wklej link do obrazu'><br><br>";
+
     echo "<input type='submit' value='Dodaj Produkt'></form></div>";
 }
+
+
+
 
 /**
  * Wyświetla formularz dodawania nowej kategorii.
  */
-function dodajKategorieFormularz($parent_id = 0) {
+function dodajKategorieFormularz() {
     echo "<div class='add-category-form'><h1>Dodaj Nową Kategorię</h1>";
     echo "<form method='post' action='admin.php?action=process_add_category'>";
+    
+    // Pole dla nazwy kategorii
     echo "<label for='category_name'>Nazwa Kategorii:</label><br>";
     echo "<input type='text' name='category_name' id='category_name' required><br><br>";
-
-    if ($parent_id != 0) {
-        echo "<input type='hidden' name='parent_id' value='{$parent_id}'>";
-    }
-
+    
+    // Przycisk dodawania kategorii
     echo "<input type='submit' value='Dodaj Kategorię'></form></div>";
 }
+
 
 /**
  * Wyświetla listę produktów.
  */
 function listaProduktow($link) {
-    $query = "SELECT id, tytul, cena_netto, ilosc, status_dostepnosci FROM products ORDER BY tytul";
+    $query = "SELECT p.id, p.tytul, p.cena_netto, p.ilosc, p.status_dostepnosci, p.zdjecie, c.nazwa AS category_name 
+              FROM products p
+              LEFT JOIN category_list c ON p.category_id = c.id
+              ORDER BY p.tytul";
     $result = mysqli_query($link, $query);
 
-    // Sprawdzenie, czy zapytanie SQL się powiodło
     if (!$result) {
         die("Błąd zapytania SQL: " . mysqli_error($link));
     }
 
+    echo "<style>
+        .product-img {
+            width: 50px;
+            height: auto;
+            transition: transform 0.3s ease-in-out;
+        }
+        .product-img:hover {
+            transform: scale(2); /* Powiększenie 2x */
+        }
+        .disabled {
+            color: grey;
+            pointer-events: none;
+        }
+    </style>";
+
     echo "<div class='product-list'><h1>Lista Produktów</h1>";
     echo "<a href='admin.php?action=add_product'>Dodaj Nowy Produkt</a><br><br>";
-    echo "<table border='1'><tr><th>ID</th><th>Tytuł</th><th>Cena netto</th><th>Ilość</th><th>Status</th><th>Akcje</th><th>Koszyk</th></tr>";
+    echo "<table border='1'><tr><th>ID</th><th>Tytuł</th><th>Cena netto</th><th>Ilość</th><th>Status</th><th>Zdjęcie</th><th>Kategoria</th><th>Akcje</th><th>Dodaj do koszyka</th></tr>";
 
     while ($row = mysqli_fetch_assoc($result)) {
         echo "<tr><td>{$row['id']}</td><td>{$row['tytul']}</td><td>{$row['cena_netto']}</td><td>{$row['ilosc']}</td><td>{$row['status_dostepnosci']}</td>";
+
+        // Sprawdzenie, czy jest zdjęcie
+        if (!empty($row['zdjecie'])) {
+            echo "<td><img src='{$row['zdjecie']}' alt='Zdjęcie' class='product-img'></td>";
+        } else {
+            echo "<td>Brak</td>";
+        }
+
+        // Wyświetlenie kategorii produktu
+        echo "<td>{$row['category_name']}</td>";
+
+        // Akcje: Edytuj i Usuń
         echo "<td><a href='admin.php?action=edit_product&id={$row['id']}'>Edytuj</a> | ";
         echo "<a href='admin.php?action=delete_product&id={$row['id']}' onclick=\"return confirm('Czy na pewno chcesz usunąć ten produkt?')\">Usuń</a></td>";
-        echo "<td><a href='koszyk.php?action=add_to_cart&id={$row['id']}'>Dodaj do koszyka</a></td></tr>";
+
+        // Warunek: jeśli status dostępności to "niedostępny", zablokuj dodanie do koszyka
+        if ($row['status_dostepnosci'] == 'dostępny') {
+            // Przycisk "Dodaj do koszyka"
+            echo "<td><a href='koszyk.php?action=add_to_cart&id={$row['id']}'>Dodaj do koszyka</a></td>";
+        } else {
+            // Zablokowany przycisk "Dodaj do koszyka"
+            echo "<td class='disabled'>Produkt niedostępny</td>";
+        }
+        
+        echo "</tr>";
     }
 
     echo "</table></div>";
@@ -238,6 +314,7 @@ function listaProduktow($link) {
 /**
  * Dodaje nowy produkt do bazy danych.
  */
+
 function procesDodawaniaProduktu($link) {
     if (isset($_POST['product_title'])) {
         $product_title = mysqli_real_escape_string($link, $_POST['product_title']);
@@ -245,14 +322,20 @@ function procesDodawaniaProduktu($link) {
         $product_price = $_POST['product_price'];
         $product_stock = $_POST['product_stock'];
         $product_status = $_POST['product_status'];
+        $product_image = mysqli_real_escape_string($link, $_POST['product_image']);
+        $product_category = $_POST['product_category']; // Pobranie ID kategorii
 
-        $query = "INSERT INTO products (tytul, opis, cena_netto, ilosc, status_dostepnosci) 
-                  VALUES ('{$product_title}', '{$product_description}', {$product_price}, {$product_stock}, '{$product_status}')";
+        // Dodanie produktu do bazy danych z kategorią
+        $query = "INSERT INTO products (tytul, opis, cena_netto, ilosc, status_dostepnosci, zdjecie, category_id) 
+                  VALUES ('{$product_title}', '{$product_description}', {$product_price}, {$product_stock}, '{$product_status}', '{$product_image}', {$product_category})";
+        
         mysqli_query($link, $query);
         header("Location: admin.php?action=list_products");
         exit();
     }
 }
+
+
 
 /**
  * Usuwa kategorię z bazy danych.
@@ -272,7 +355,6 @@ function usunKategorie($link, $id) {
         exit();
     } else {
         // Kategoria o takim ID nie istnieje
-        echo "<p>Nie znaleziono kategorii o podanym ID.</p>";
         echo "<p>Nie znaleziono kategorii o podanym ID.</p>";
     }
 }
@@ -312,18 +394,22 @@ function edytujKategorieFormularz($link, $id) {
 }
 
 /**
- * Dodaje nową kategorię do bazy danych.
+ * Proces dodawania nowej kategorii.
  */
 function procesDodawaniaKategorii($link) {
     if (isset($_POST['category_name'])) {
+        // Oczyszczanie danych
         $category_name = mysqli_real_escape_string($link, $_POST['category_name']);
-        $parent_id = isset($_POST['parent_id']) ? $_POST['parent_id'] : 'NULL'; // Poprawka dla wartości NULL
+        
+        // Ustawienie parent_id na 0 (brak kategorii nadrzędnej)
+        $parent_id = 0;
 
         // Zapytanie SQL do dodania nowej kategorii
         $query = "INSERT INTO category_list (nazwa, matka) VALUES ('{$category_name}', {$parent_id})";
 
+        // Wykonanie zapytania
         if (!mysqli_query($link, $query)) {
-            die("Błąd SQL: " . mysqli_error($link)); // Wyświetl błąd SQL
+            die("Błąd zapytania SQL: " . mysqli_error($link));
         }
 
         // Po zapisaniu przekierowanie do listy kategorii
@@ -333,19 +419,22 @@ function procesDodawaniaKategorii($link) {
 }
 
 
+
 /**
  * Proces edytowania kategorii.
  */
 function procesEdycjiKategorii($link, $id) {
     if (isset($_POST['category_name'])) {
+        // Pobierz i oczyść dane wejściowe
         $category_name = mysqli_real_escape_string($link, $_POST['category_name']);
-        $parent_id = ($_POST['parent_id'] !== '') ? $_POST['parent_id'] : 'NULL'; // Obsługa pustego parent_id
+        $parent_id = isset($_POST['parent_id']) && is_numeric($_POST['parent_id']) ? (int)$_POST['parent_id'] : 0;
 
         // Aktualizacja nazwy kategorii
         $query = "UPDATE category_list SET nazwa = '{$category_name}', matka = {$parent_id} WHERE ID = {$id}";
 
+        // Wykonaj zapytanie i sprawdź, czy działa
         if (!mysqli_query($link, $query)) {
-            die("Błąd SQL: " . mysqli_error($link)); // Wyświetl błąd SQL
+            die("Błąd zapytania SQL: " . mysqli_error($link));
         }
 
         // Po zapisaniu przekierowanie do listy kategorii
@@ -370,27 +459,91 @@ function edytujProduktFormularz($link, $id) {
         $product_price = $row['cena_netto'];
         $product_stock = $row['ilosc'];
         $product_status = $row['status_dostepnosci'];
+        $product_image = !empty($row['zdjecie']) ? htmlspecialchars($row['zdjecie']) : '';
+        $product_category = $row['category_id']; // Zapisz ID kategorii produktu
 
         echo "<div class='edit-product-form'><h1>Edytuj Produkt</h1>";
         echo "<form method='post' action='admin.php?action=process_edit_product&id={$id}'>";
+        
         echo "<label for='product_title'>Tytuł Produktu:</label><br>";
         echo "<input type='text' name='product_title' id='product_title' value='{$product_title}' required><br><br>";
+
         echo "<label for='product_description'>Opis Produktu:</label><br>";
         echo "<textarea name='product_description' id='product_description' required>{$product_description}</textarea><br><br>";
+
         echo "<label for='product_price'>Cena Netto:</label><br>";
         echo "<input type='number' step='0.01' name='product_price' id='product_price' value='{$product_price}' required><br><br>";
+
         echo "<label for='product_stock'>Ilość na magazynie:</label><br>";
         echo "<input type='number' name='product_stock' id='product_stock' value='{$product_stock}' required><br><br>";
+
         echo "<label for='product_status'>Status dostępności:</label><br>";
-        echo "<select name='product_status' id='product_status'><option value='Dostępny' ".($product_status == 'Dostępny' ? 'selected' : '').">Dostępny</option><option value='Niedostępny' ".($product_status == 'Niedostępny' ? 'selected' : '').">Niedostępny</option></select><br><br>";
+        echo "<select name='product_status' id='product_status'>
+                <option value='Dostępny' ".($product_status == 'Dostępny' ? 'selected' : '').">Dostępny</option>
+                <option value='Niedostępny' ".($product_status == 'Niedostępny' ? 'selected' : '').">Niedostępny</option>
+              </select><br><br>";
+
+        echo "<label for='product_category'>Kategoria:</label><br>";
+        echo "<select name='product_category' id='product_category' required>";
+        
+        // Pobieramy dostępne kategorie z bazy danych
+        $category_query = "SELECT id, nazwa FROM category_list ORDER BY nazwa";
+        $category_result = mysqli_query($link, $category_query);
+        while ($category_row = mysqli_fetch_assoc($category_result)) {
+            $selected = ($category_row['id'] == $product_category) ? 'selected' : ''; // Zaznaczenie wybranej kategorii
+            echo "<option value='{$category_row['id']}' {$selected}>{$category_row['nazwa']}</option>";
+        }
+
+        echo "</select><br><br>";
+
+        echo "<label for='product_image'>Link do Zdjęcia:</label><br>";
+        echo "<input type='text' name='product_image' id='product_image' value='{$product_image}'><br><br>";
+
+        if (!empty($product_image)) {
+            echo "<p>Podgląd aktualnego zdjęcia:</p>";
+            echo "<img src='{$product_image}' alt='Zdjęcie produktu' style='max-width: 200px;'><br><br>";
+        }
+
         echo "<input type='submit' value='Zapisz Zmiany'></form></div>";
     } else {
         echo "<p>Nie znaleziono produktu o podanym ID.</p>";
     }
 }
 
+
 /**
- * Proces edytowania produktu.
+ * Przetwarza edycję produktu i zapisuje zmiany w bazie.
+ */
+function processEditProduct($link, $id) {
+    if (isset($_POST['product_title'])) {
+        $product_title = mysqli_real_escape_string($link, $_POST['product_title']);
+        $product_description = mysqli_real_escape_string($link, $_POST['product_description']);
+        $product_price = $_POST['product_price'];
+        $product_stock = $_POST['product_stock'];
+        $product_status = $_POST['product_status'];
+        $product_image = mysqli_real_escape_string($link, $_POST['product_image']); // Pobranie nowego linku do zdjęcia
+        $product_category = $_POST['product_category']; // Kategoria produktu
+
+        // Aktualizacja rekordu w bazie
+        $query = "UPDATE products SET 
+                  tytul = '{$product_title}', 
+                  opis = '{$product_description}', 
+                  cena_netto = {$product_price}, 
+                  ilosc = {$product_stock}, 
+                  status_dostepnosci = '{$product_status}', 
+                  zdjecie = '{$product_image}', 
+                  category_id = {$product_category}  -- Dodanie kategorii
+                  WHERE id = {$id}";
+
+        mysqli_query($link, $query);
+        header("Location: admin.php?action=list_products");
+        exit();
+    }
+}
+
+
+/**
+ * Obsługuje edycję produktu.
  */
 function procesEdycjiProduktu($link, $id) {
     if (isset($_POST['product_title'])) {
@@ -399,13 +552,23 @@ function procesEdycjiProduktu($link, $id) {
         $product_price = $_POST['product_price'];
         $product_stock = $_POST['product_stock'];
         $product_status = $_POST['product_status'];
+        $product_image = mysqli_real_escape_string($link, $_POST['product_image']);
+        $product_category = $_POST['product_category']; // Kategoria
 
-        $query = "UPDATE products SET tytul = '{$product_title}', opis = '{$product_description}', cena_netto = {$product_price}, ilosc = {$product_stock}, status_dostepnosci = '{$product_status}' WHERE id = {$id}";
+        // Aktualizacja rekordu w bazie
+        $query = "UPDATE products 
+                  SET tytul='{$product_title}', opis='{$product_description}', cena_netto={$product_price}, 
+                      ilosc={$product_stock}, status_dostepnosci='{$product_status}', zdjecie='{$product_image}',
+                      category_id={$product_category}  -- Dodanie kategorii
+                  WHERE id={$id}";
+
         mysqli_query($link, $query);
         header("Location: admin.php?action=list_products");
         exit();
     }
 }
+
+
 // Funkcja wyświetlająca listę podstron
 function ListaPodstron($link) {
     $query = "SELECT ID, page_title FROM page_list ORDER BY ID DESC";
